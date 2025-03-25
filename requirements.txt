@@ -1,0 +1,7 @@
+protobuf
+google-auth
+google-auth-oauthlib
+Flask
+markdown
+openai
+flask[async]

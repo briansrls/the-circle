@@ -1,0 +1,31 @@
+syntax = "proto2";
+
+enum AIType {
+  // https://platform.openai.com/docs/pricing
+  OPENAI = 0;
+  // https://ai.google.dev/gemini-api/docs/models
+  GEMINI = 1;
+  // https://docs.anthropic.com/en/docs/about-claude/models/all-models
+  CLAUDE = 2;
+  // https://api-docs.deepseek.com/quick_start/pricing
+  // DEEPSEEK = 3;
+}
+
+message AgentConfig {
+  optional string name = 1;
+  optional string system_prompt = 2;
+  optional string seed_file = 3;
+  optional string model = 4;
+  optional AIType ai_type = 5; // New field for AI type selection
+}
+
+message Relationship {
+  // Example: "one-to-many", "one-to-one", etc.
+  optional string relation_type = 1;
+  repeated string agents = 2;
+}
+
+message AgentsDefinition {
+  repeated AgentConfig agents = 1;
+  repeated Relationship relationships = 2;
+}
