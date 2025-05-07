@@ -1,0 +1,474 @@
+:root {
+  /* Light Theme (Default) */
+  --bg-main: #f0f4f8; 
+  --bg-header: #e1e8f0;
+  --bg-section: #ffffff;
+  --text-primary: #333333;
+  --text-secondary: #555555;
+  --border-color: #d0d8e0;
+
+  --user-bubble-bg: #cce4ff;
+  --user-bubble-text: #1c2833;
+  --assistant-bubble-bg: #d1f0d1;
+  --assistant-bubble-text: #1b2e1b;
+  --system-bubble-bg: #fff9c4;
+  --system-bubble-text: #413316;
+
+  --button-bg: #a7c7e7;
+  --button-hover-bg: #8da8c7;
+  --button-text: #ffffff;
+
+  --input-bg: #ffffff;
+  --input-border: #b0bec5;
+  --input-focus-border: var(--button-bg);
+  --input-text: var(--text-primary); /* Added for consistency */
+
+  /* Dark Theme Variables (will be activated by media query) */
+  --bg-main-dark: #263238;        /* Dark Slate Grey / Charcoal */
+  --bg-header-dark: #37474f;      /* Slightly Lighter Dark Slate */
+  --bg-section-dark: #455a64;     /* Bluish Grey */
+  --text-primary-dark: #eceff1;   /* Light Grey / Off-white */
+  --text-secondary-dark: #b0bec5; /* Lighter Grey */
+  --border-color-dark: #546e7a;   /* Medium Grey */
+
+  --user-bubble-bg-dark: #4a90e2;   /* Brighter Pastel Blue */
+  --user-bubble-text-dark: #ffffff;
+  --assistant-bubble-bg-dark: #50e3c2; /* Brighter Pastel Teal/Green */
+  --assistant-bubble-text-dark: #17202a;
+  --system-bubble-bg-dark: #f8e71c;  /* Brighter Pastel Yellow */
+  --system-bubble-text-dark: #3d2c0a;
+
+  --button-bg-dark: #4a90e2;      
+  --button-hover-bg-dark: #6aaaf0;
+  --button-text-dark: #ffffff; /* Or #17202a for contrast if button is very light */
+
+  --input-bg-dark: #37474f;
+  --input-border-dark: #546e7a;
+  --input-focus-border-dark: var(--button-bg-dark);
+  --input-text-dark: var(--text-primary-dark);
+
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  
+  color: var(--text-primary);
+  background-color: var(--bg-main);
+  color-scheme: light dark; /* Allow both, respect preference */
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Apply dark theme variables if user prefers dark mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-main: var(--bg-main-dark); 
+    --bg-header: var(--bg-header-dark);
+    --bg-section: var(--bg-section-dark);
+    --text-primary: var(--text-primary-dark);
+    --text-secondary: var(--text-secondary-dark);
+    --border-color: var(--border-color-dark);
+
+    --user-bubble-bg: var(--user-bubble-bg-dark);
+    --user-bubble-text: var(--user-bubble-text-dark);
+    --assistant-bubble-bg: var(--assistant-bubble-bg-dark);
+    --assistant-bubble-text: var(--assistant-bubble-text-dark);
+    --system-bubble-bg: var(--system-bubble-bg-dark);
+    --system-bubble-text: var(--system-bubble-text-dark);
+
+    --button-bg: var(--button-bg-dark);
+    --button-hover-bg: var(--button-hover-bg-dark);
+    --button-text: var(--button-text-dark);
+
+    --input-bg: var(--input-bg-dark);
+    --input-border: var(--input-border-dark);
+    --input-focus-border: var(--input-focus-border-dark);
+    --input-text: var(--input-text-dark); /* Ensure input text color changes */
+  }
+}
+
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--bg-main); /* Ensure body background uses variable */
+  color: var(--text-primary); /* Ensure body text color uses variable */
+}
+
+#root {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-container header {
+  background-color: var(--bg-header);
+  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.app-container header h1 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.8rem;
+}
+
+.app-container main {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column; 
+  padding: 1rem;
+  gap: 1rem;
+}
+
+/* Added display:flex and default direction */
+.main-content-area {
+  display: flex;
+  flex-direction: column; /* Default direction */
+  flex-grow: 1; /* Allow this area to grow */
+  gap: 1rem; /* Keep the gap between sections */
+}
+
+@media (min-width: 768px) {
+  .main-content-area {
+    flex-direction: row; /* Switch to row on wider screens */
+    align-items: flex-start; /* Align items to the top */
+  }
+}
+
+.config-section, .chat-display-section {
+  background-color: var(--bg-section);
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* Shadow might need adjustment for dark mode */
+  border: 1px solid var(--border-color);
+}
+
+.config-section {
+  flex: 1; /* Takes 1 part of available space */
+  min-width: 240px; /* Can shrink a bit more */
+  padding: 0.75rem; 
+  background-color: var(--bg-section);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  border: 1px solid var(--border-color);
+}
+
+.chat-display-section {
+  flex: 3; 
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-section);
+  padding: 1.5rem; /* Restore padding */
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+  border: 1px solid var(--border-color);
+  /* overflow: hidden; */ /* Remove this if padding is back */
+}
+
+/* Remove rules targeting Title and top-controls-bar specifically */
+/* .chat-display-section > .mantine-Title-root { ... } */
+/* .top-controls-bar { ... } */
+
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+textarea,
+select {
+  width: 100%;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  background-color: var(--input-bg);
+  color: var(--input-text); /* Use variable for input text color */
+  box-sizing: border-box;
+  transition: border-color 0.2s ease-in-out, background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--input-focus-border) 50%, transparent); /* Adjusted shadow */
+}
+
+button {
+  background-color: var(--button-bg);
+  color: var(--button-text);
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+button:hover:not(:disabled) {
+  background-color: var(--button-hover-bg);
+}
+
+button:disabled {
+  background-color: color-mix(in srgb, var(--bg-section) 70%, var(--text-secondary) 30%);
+  color: color-mix(in srgb, var(--text-secondary) 70%, var(--bg-section) 30%);
+  cursor: not-allowed;
+}
+
+/* Loading button animation */
+.button-loading {
+  position: relative;
+  /* You might want to adjust background/color if it differs from the disabled state */
+  /* background-color: var(--button-hover-bg); */ /* Or a specific loading color */
+}
+
+.button-loading::after {
+  content: "...";
+  position: absolute;
+  right: 10px; /* Adjust as needed for your button padding */
+  top: 50%;
+  transform: translateY(-50%);
+  animation: ellipsis 1.5s infinite steps(3, end);
+  font-weight: bold;
+}
+
+@keyframes ellipsis {
+  0%, 20% {
+    content: ".";
+  }
+  40% {
+    content: "..";
+  }
+  60%, 100% {
+    content: "...";
+  }
+}
+
+.agent-config-form {
+  border: 1px solid var(--border-color) !important; 
+  padding: 0.5rem !important; /* Further reduced padding */
+  margin-top: 0.5rem !important; /* Further reduced margin */
+  border-radius: 6px;
+  background-color: var(--bg-section); 
+}
+
+.agent-config-form h4 {
+  margin-top: 0;
+  margin-bottom: 0.4rem; /* Further reduced margin */
+  font-size: 1.05em; /* Slightly smaller heading */
+  color: var(--text-primary);
+}
+
+/* Override Mantine's default wrapper margins */
+.agent-config-form .mantine-TextInput-root,
+.agent-config-form .mantine-Textarea-root,
+.agent-config-form .mantine-Select-root,
+.agent-config-form .mantine-PasswordInput-root,
+.agent-config-form .mantine-NumberInput-root,
+.agent-config-form .mantine-Group-root
+{
+  margin-bottom: 0 !important; /* Force zero bottom margin */
+  margin-top: 0 !important; 
+}
+
+/* Reduce margin below labels even further */
+.agent-config-form label {
+  margin-bottom: 0.05rem !important; /* Minimal margin below label */
+  font-weight: 500;
+  font-size: 0.85em; 
+  color: var(--text-secondary);
+}
+
+/* Ensure minimal margin below actual input elements */
+.agent-config-form input[type="text"],
+.agent-config-form input[type="password"],
+.agent-config-form input[type="number"],
+.agent-config-form .mantine-Select-input, 
+.agent-config-form .mantine-Textarea-input, 
+.agent-config-form .mantine-PasswordInput-input, 
+.agent-config-form .mantine-NumberInput-input, 
+.agent-config-form .mantine-TextInput-input
+{
+  padding: 0.4rem !important; 
+  margin-bottom: 0 !important; /* No margin directly below input field itself */
+  font-size: 0.95em; 
+  width: 100%;
+  min-height: unset !important; 
+}
+
+.agent-config-form textarea {
+  min-height: 30px !important; /* Keep this, but maybe Mantine overrides? */
+  vertical-align: top; 
+}
+
+.chat-display {
+  flex-grow: 1; 
+  overflow-y: auto;
+  padding: 1rem; /* Restore padding */
+  border: 1px solid var(--border-color); /* Restore border */
+  border-radius: 6px; /* Restore border-radius */
+  background-color: color-mix(in srgb, var(--bg-main) 95%, var(--bg-section) 5%); 
+}
+
+.message-bubble {
+  padding: 10px 15px;
+  border-radius: 18px;
+  margin-bottom: 8px;
+  max-width: 75%;
+  word-wrap: break-word;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  display: flex; 
+  flex-direction: column;
+  animation: fadeInMessage 0.5s ease-out forwards; /* Add animation */
+}
+
+.message-bubble strong {
+  font-size: 0.8em;
+  color: color-mix(in srgb, currentColor 70%, #000000 30%); /* Mix with black for darkness */
+  opacity: 0.9; /* Slightly reduce opacity for softness */
+  margin-bottom: 4px;
+  display: block;
+}
+
+.message-bubble small {
+  font-size: 0.7em;
+  color: color-mix(in srgb, var(--text-secondary) 80%, transparent);
+  margin-top: 5px;
+  align-self: flex-end;
+}
+
+.message-user {
+  background-color: var(--user-bubble-bg);
+  color: var(--user-bubble-text);
+  margin-left: auto; 
+  border-bottom-right-radius: 5px;
+}
+
+.message-assistant {
+  margin-right: auto; 
+  border-bottom-left-radius: 5px;
+}
+
+.message-system {
+  background-color: var(--system-bubble-bg);
+  color: var(--system-bubble-text);
+  font-style: italic;
+  font-size: 0.9em;
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 90%;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+/* Compact style for the 'Received prompt...' message */
+.message-thinking-prompt {
+  max-width: 50%; /* Keep it narrower */
+  padding: 2px 8px !important; /* Much less padding */
+  margin-bottom: 4px !important; /* Less margin below */
+  font-size: 0.75em !important; /* Smaller font */
+  opacity: 0.7; /* Make it less prominent */
+  background-color: var(--bg-main); /* Use main bg to blend in more */
+  color: var(--text-secondary);
+  border: 1px dashed var(--border-color);
+  box-shadow: none;
+}
+
+.message-thinking-prompt strong,
+.message-thinking-prompt p,
+.message-thinking-prompt small {
+  display: inline; /* Make content flow inline */
+  margin: 0 0.25em 0 0; /* Minimal spacing */
+  font-size: 1em; /* Inherit small font from parent */
+}
+
+.message-thinking-prompt small {
+  opacity: 0.7;
+}
+
+.chat-display p:first-child {
+  text-align: center;
+  color: var(--text-secondary);
+  padding-top: 20px;
+}
+
+/* Animation for new messages */
+@keyframes fadeInMessage {
+  from {
+    opacity: 0;
+    transform: translateY(10px); /* Slight slide up effect */
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Styles for the thinking indicator bubble */
+.message-thinking {
+  min-height: 40px; /* Give it some initial height */
+  display: flex;
+  align-items: center; /* Vertically center dots if needed */
+  justify-content: flex-start; /* Align dots to the left */
+  padding-top: 12px; /* Adjust padding */
+  padding-bottom: 12px;
+}
+
+.message-thinking strong {
+  margin-bottom: 0; /* Remove bottom margin for the name */
+  margin-right: 8px; /* Add space between name and dots */
+}
+
+.thinking-dots span {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background-color: currentColor; /* Use bubble text color */
+  border-radius: 50%;
+  margin: 0 2px;
+  opacity: 0.4;
+  animation: bounceDots 1.4s infinite ease-in-out both;
+}
+
+.thinking-dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.thinking-dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes bounceDots {
+  0%, 80%, 100% { 
+    transform: scale(0); 
+    opacity: 0.4;
+  } 
+  40% { 
+    transform: scale(1.0); 
+    opacity: 1;
+  } 
+}

@@ -1,4 +1,8 @@
-seed/*
-textproto/*
-*_pb2*
-Pipfile*
+# Project-specific ignores can be added here.
+# For example:
+# /build_outputs/
+# *.log
+
+# If you have frontend-specific ignores, add them to frontend/.gitignore
+
+node_modules/
