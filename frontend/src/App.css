@@ -319,9 +319,14 @@ button:disabled {
   min-height: unset !important; 
 }
 
-.agent-config-form textarea {
-  min-height: 30px !important; /* Keep this, but maybe Mantine overrides? */
-  vertical-align: top; 
+/* Specific overrides for Textarea within the form */
+.agent-config-form .mantine-Textarea-input {
+  padding: 0.3rem 0.4rem !important; /* Reduce vertical padding further */
+  margin-bottom: 0 !important; 
+  font-size: 0.95em; 
+  width: 100%;
+  min-height: 28px !important; /* Further reduce min-height, trying to override minRows */
+  line-height: 1.3 !important; /* Tighter line height */
 }
 
 .chat-display {
