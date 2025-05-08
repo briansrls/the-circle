@@ -30,7 +30,6 @@ async function callGeminiApi(
   // };
 
   console.log("Calling Gemini API with endpoint:", API_ENDPOINT);
-  console.log("Request body:", JSON.stringify(requestBody, null, 2));
 
   try {
     const response = await fetch(API_ENDPOINT, {
@@ -50,7 +49,7 @@ async function callGeminiApi(
     }
 
     const responseData = await response.json();
-    console.log("Gemini API Success Response:", responseData);
+    console.log("Gemini API Success Response");
 
     // Extract the text from the response
     // Accessing candidates[0].content.parts[0].text
@@ -220,7 +219,7 @@ export async function agentTelephone(
 
       currentRoundMessagesForContext.push(reply); // Add assistant's reply to current round context
 
-      console.log(`${agent.name} sends: ${reply}\n`);
+      console.log(`${agent.name} sending reply`);
       onMessageUpdate({
         id: `msg-agent-sends-${agent.id}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         agentName: agent.name || "Unnamed Agent",
