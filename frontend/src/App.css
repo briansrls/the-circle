@@ -347,9 +347,9 @@ button:disabled {
 
 .message-bubble strong {
   font-size: 0.8em;
-  color: color-mix(in srgb, currentColor 70%, #000000 30%); /* Mix with black for darkness */
-  opacity: 0.9; /* Slightly reduce opacity for softness */
-  margin-bottom: 4px;
+  color: color-mix(in srgb, currentColor 70%, #000000 30%);
+  opacity: 0.9; 
+  margin-bottom: 0; /* Reduce margin if meta is below */
   display: block;
 }
 
@@ -471,4 +471,16 @@ button:disabled {
     transform: scale(1.0); 
     opacity: 1;
   } 
+}
+
+/* Style for the Model/Type metadata */
+.message-meta {
+  line-height: 1.2; /* Tighter line height */
+  /* Mantine props c="dimmed" size="xs" handle color/size */
+  /* font-style: italic; optional */
+}
+
+.message-bubble p {
+  margin-top: 0.25rem; /* Add slight space above main content if meta is present */
+  margin-bottom: 0;
 }

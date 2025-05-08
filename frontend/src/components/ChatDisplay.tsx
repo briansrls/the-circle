@@ -1,5 +1,7 @@
 import React from 'react';
 import type { AppAgentConfig } from '../App'; // Need this for agent names
+import { AIType } from '../../src/proto/agent_static.js'; // Import AIType for labels
+import { Text } from '@mantine/core'; // Import Mantine Text
 
 // Placeholder type - will be replaced or augmented
 interface Message {
@@ -11,6 +13,8 @@ interface Message {
   roundNum?: number;
   subRole?: 'thinking-prompt'; // Ensure interface matches App.tsx
   agentId?: string; // Ensure interface matches App.tsx
+  model?: string | null; // Ensure interface matches App.tsx
+  aiType?: AIType | null; // Ensure interface matches App.tsx
 }
 
 interface ChatDisplayProps {
@@ -27,6 +31,13 @@ const agentColorPairs = [
   { background: '#d1eaf0', text: '#1b2a2e' }, // Pastel Cyan
   { background: '#f0d1dc', text: '#2e1b24' }, // Pastel Pink
   // Add more pairs if you expect more agents
+];
+
+// Prepare AI Type options for labels (copied from AgentConfigForm, could be refactored)
+const aiTypeOptions = [
+  { value: '0', label: 'OPENAI' },
+  { value: '1', label: 'GEMINI' },
+  { value: '2', label: 'CLAUDE' },
 ];
 
 const ChatDisplay: React.FC<ChatDisplayProps> = ({ messages, thinkingAgentId, agents }) => {
@@ -61,12 +72,23 @@ const ChatDisplay: React.FC<ChatDisplayProps> = ({ messages, thinkingAgentId, ag
           }
         }
 
+        // Get AI Type label for display
+        const aiTypeLabel = msg.aiType !== undefined && msg.aiType !== null
+          ? aiTypeOptions.find(opt => opt.value === String(msg.aiType))?.label || `Type ${msg.aiType}`
+          : null;
+
         return (
           <div key={msg.id} className={bubbleClasses} style={bubbleStyle}>
             <strong>
               {msg.agentName}
               {msg.roundNum && <span style={{ fontWeight: 'normal', marginLeft: '8px' }}>(R{msg.roundNum})</span>}
             </strong>
+            {/* Display Model/Type if available (for assistant messages) */}
+            {msg.role === 'assistant' && (msg.model || aiTypeLabel) && (
+              <Text size="xs" c="dimmed" mt={-4} mb={4} className="message-meta">
+                {aiTypeLabel ? `${aiTypeLabel}` : ''}{msg.model && aiTypeLabel ? ' / ' : ''}{msg.model ? `${msg.model}` : ''}
+              </Text>
+            )}
             <p style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</p>
             <small>{msg.timestamp.toLocaleTimeString()}</small>
           </div>
@@ -84,11 +106,23 @@ const ChatDisplay: React.FC<ChatDisplayProps> = ({ messages, thinkingAgentId, ag
             color: colorPair.text,
           };
         }
+        // Find model/type info for thinking agent
+        const thinkingAgentInfo = agents.find(a => a.id === thinkingAgentId);
+        const thinkingAiTypeLabel = thinkingAgentInfo?.aiType !== undefined && thinkingAgentInfo?.aiType !== null
+          ? aiTypeOptions.find(opt => opt.value === String(thinkingAgentInfo.aiType))?.label || `Type ${thinkingAgentInfo.aiType}`
+          : null;
+
         return (
           <div key="thinking-indicator" className="message-bubble message-assistant message-thinking" style={thinkingStyle}>
             <strong>
               {thinkingAgent?.name || `Agent ${thinkingAgentId.substring(6, 10)}...`}
             </strong>
+            {/* Also show model/type in thinking bubble */}
+            {(thinkingAgentInfo?.model || thinkingAiTypeLabel) && (
+              <Text size="xs" c="dimmed" mt={-4} mb={4} className="message-meta">
+                {thinkingAiTypeLabel ? `${thinkingAiTypeLabel}` : ''}{thinkingAgentInfo?.model && thinkingAiTypeLabel ? ' / ' : ''}{thinkingAgentInfo?.model ? `${thinkingAgentInfo.model}` : ''}
+              </Text>
+            )}
             <div className="thinking-dots">
               <span></span>
               <span></span>

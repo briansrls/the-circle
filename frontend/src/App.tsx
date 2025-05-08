@@ -3,10 +3,12 @@ import { useState } from 'react';
 import { AgentConfig, AIType } from '../src/proto/agent_static.js';
 import './App.css'; // We can keep this for now for basic styling
 import { agentTelephone } from './services/chatService'; // Import the service
-import { MantineProvider, Paper, Group, TextInput, NumberInput, Button, Title } from '@mantine/core'; // Import Mantine components including Title
+import { MantineProvider, Paper, Group, TextInput, NumberInput, Button, Title, ActionIcon, AppShell } from '@mantine/core'; // Import Mantine components including Title, ActionIcon, AppShell
+import { useDisclosure } from '@mantine/hooks'; // Hook for modal open/close
 
 import AgentConfigForm from './components/AgentConfigForm';
 import ChatDisplay from './components/ChatDisplay';
+import SettingsModal from './components/SettingsModal'; // Uncomment import
 
 // Define AppAgentConfig as a plain interface with all necessary fields
 // It should match the structure of AgentConfig data fields + our own fields.
@@ -17,7 +19,6 @@ export interface AppAgentConfig {
   seedContent?: string | null;    // Changed from seedFile to seedContent
   model?: string | null;
   aiType?: AIType | null;       // Use the AIType enum
-  apiKey?: string | null;
 }
 
 export interface Message {
@@ -29,7 +30,12 @@ export interface Message {
   roundNum?: number; // Add round number
   subRole?: 'thinking-prompt'; // Add sub-role for specific system messages
   agentId?: string; // Add agentId
+  model?: string | null; // Add model
+  aiType?: AIType | null; // Add aiType
 }
+
+// Type for global API keys state
+export type ApiKeys = { [key in AIType]?: string };
 
 const initialAgents: AppAgentConfig[] = [
   {
@@ -38,7 +44,7 @@ const initialAgents: AppAgentConfig[] = [
     systemPrompt: "You are a creative writer, skilled in crafting engaging narratives and evocative descriptions. Focus on originality and flair.",
     model: "gemini-1.5-pro-latest",
     aiType: AIType.GEMINI,
-    seedContent: "Topic: The last dragon on Earth.",
+    seedContent: null,
   },
   {
     id: `agent-${Date.now()}-2`,
@@ -46,7 +52,7 @@ const initialAgents: AppAgentConfig[] = [
     systemPrompt: "You are an analytical reviewer, tasked with critically evaluating content for clarity, coherence, and logical consistency. Be precise and constructive.",
     model: "gemini-1.5-pro-latest",
     aiType: AIType.GEMINI,
-    seedContent: "Review criteria: Originality, clarity, engagement.",
+    seedContent: null,
   }
 ];
 
@@ -58,6 +64,27 @@ function App() {
   const [isChatRunning, setIsChatRunning] = useState<boolean>(false);
   const [thinkingAgentId, setThinkingAgentId] = useState<string | null>(null); // State for thinking agent
 
+  // State for settings modal and API Keys
+  const [settingsModalOpened, { open: openSettingsModal, close: closeSettingsModal }] = useDisclosure(false);
+  const [apiKeys, setApiKeys] = useState<ApiKeys>(() => {
+    // Initialize from .env variables
+    const initialKeys: ApiKeys = {};
+    // Correctly read the default Gemini key env variable
+    const geminiKey = import.meta.env.VITE_DEFAULT_GEMINI_API_KEY as string;
+    // Suggest using VITE_OPENAI_API_KEY for OpenAI if added to .env
+    const openaiKey = import.meta.env.VITE_OPENAI_API_KEY as string;
+
+    if (geminiKey) initialKeys[AIType.GEMINI] = geminiKey;
+    if (openaiKey) initialKeys[AIType.OPENAI] = openaiKey;
+    // Add others here if needed
+    return initialKeys;
+  });
+
+  // Handler to update API keys from modal
+  const handleApiKeysChange = (newKeys: ApiKeys) => {
+    setApiKeys(newKeys);
+  };
+
   const handleAddAgent = () => {
     const newAgent: AppAgentConfig = {
       id: `agent-${Date.now()}-${agents.length + 1}`,
@@ -65,7 +92,7 @@ function App() {
       systemPrompt: "You are a helpful assistant.",
       model: "gemini-1.5-pro-latest",
       aiType: AIType.GEMINI,
-      seedContent: "This is some default seed content. You can edit or remove this.",
+      seedContent: null,
     };
     setAgents(prevAgents => [...prevAgents, newAgent]);
   };
@@ -120,7 +147,8 @@ function App() {
         onMessageUpdateCallback,
         onChainCompleteCallback,
         onAgentStartThinkingCallback, // Pass new callbacks
-        onAgentEndThinkingCallback
+        onAgentEndThinkingCallback,
+        apiKeys // Pass the map
       );
     } catch (error) {
       console.error("Error during agentTelephone execution:", error);
@@ -137,11 +165,17 @@ function App() {
   };
 
   return (
-    <div className="app-container">
-      <header>
-        <h1>The Circle - Multi-Agent Chat</h1>
-      </header>
-      <main>
+    <AppShell header={{ height: 60 }} padding="md">
+      <AppShell.Header>
+        <Group h="100%" px="md" justify="space-between">
+          <Title order={3}>The Circle</Title> {/* Simplified Title */}
+          <Button variant="default" size="sm" onClick={openSettingsModal}>
+            Settings
+          </Button>
+        </Group>
+      </AppShell.Header>
+
+      <AppShell.Main>
         <div className="main-content-area"> {/* Wrapper for config and chat */}
           <section className="config-section">
             <Group justify="space-between" mb="sm">
@@ -201,11 +235,15 @@ function App() {
             <ChatDisplay messages={messages} thinkingAgentId={thinkingAgentId} agents={agents} />
           </section>
         </div>
-      </main>
-      <footer>
-        <p>The Circle - Multi-Agent Playground</p> {/* Updated footer text */}
-      </footer>
-    </div>
+
+        <SettingsModal
+          opened={settingsModalOpened}
+          onClose={closeSettingsModal}
+          apiKeys={apiKeys}
+          onSave={handleApiKeysChange}
+        />
+      </AppShell.Main>
+    </AppShell>
   );
 }
 

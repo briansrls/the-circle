@@ -1,4 +1,4 @@
-import type { AppAgentConfig, Message } from '../App'; // Types from App.tsx
+import type { AppAgentConfig, Message, ApiKeys } from '../App'; // Types from App.tsx, Import ApiKeys type
 import { AIType } from '../proto/agent_static.js'; // Import AIType enum
 
 // Actual API call to Gemini
@@ -82,7 +82,8 @@ export async function agentTelephone(
   onMessageUpdate: (message: Message) => void, // Callback to stream messages to UI
   onChainComplete: (finalMessage: string) => void, // Callback for when the chain finishes
   onAgentStartThinking: (agentId: string) => void, // Add new callback param
-  onAgentEndThinking: () => void                // Add new callback param
+  onAgentEndThinking: () => void,                // Add new callback param
+  apiKeys: ApiKeys // Add apiKeys parameter
 ): Promise<void> {
   if (agents.length < 1) { // Changed from < 2 to allow single agent interaction if desired
     console.warn("Need at least 1 agent for a telephone chain.");
@@ -168,10 +169,11 @@ export async function agentTelephone(
       onAgentStartThinking(agent.id); // Call start thinking BEFORE try/catch
       try {
         if (agent.aiType === AIType.GEMINI) {
-          const apiKeyToUse = agent.apiKey || import.meta.env.VITE_DEFAULT_GEMINI_API_KEY as string;
+          // Lookup key from the passed map
+          const apiKeyToUse = apiKeys[AIType.GEMINI];
           if (!apiKeyToUse) {
-            reply = "(Error: Gemini API Key not provided in agent config or .env file)";
-            console.error("Gemini API Key missing for agent:", agent.name, "and no default in .env");
+            reply = "(Error: Gemini API Key not configured in settings)";
+            console.error("Gemini API Key missing for agent:", agent.name, "- check settings.");
           } else if (!agent.model) {
             reply = "(Error: Gemini Model not specified for this agent)";
             console.error("Gemini Model missing for agent:", agent.name);
@@ -192,12 +194,21 @@ export async function agentTelephone(
             reply = await callGeminiApi(
               apiKeyToUse,
               agent.model,
-              agent.systemPrompt, // Pass systemPrompt separately
+              agent.systemPrompt,
               geminiApiContents
             );
           }
+        } else if (agent.aiType === AIType.OPENAI) { // Example for OpenAI
+          const apiKeyToUse = apiKeys[AIType.OPENAI];
+          if (!apiKeyToUse) {
+            reply = "(Error: OpenAI API Key not configured in settings)";
+            console.error("OpenAI API Key missing - check settings.");
+          } else {
+            // reply = await callOpenAiApi(...);
+            reply = "(OpenAI API call not implemented yet)";
+          }
         } else {
-          reply = `(API call for ${AIType[agent.aiType || -1]} not implemented yet.)`; // Assign error to reply
+          reply = `(API call for ${AIType[agent.aiType || -1]} not implemented yet.)`;
           console.warn(`API call for ${AIType[agent.aiType || -1]} not implemented yet.`);
         }
       } catch (error) {
@@ -218,6 +229,8 @@ export async function agentTelephone(
         content: reply,
         timestamp: new Date(),
         roundNum: roundNum + 1,
+        model: agent.model,
+        aiType: agent.aiType,
       });
     }
     previousRoundContext = currentRoundMessagesForContext.join("\n\n---\n\n");
