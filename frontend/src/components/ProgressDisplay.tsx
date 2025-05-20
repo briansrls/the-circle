@@ -17,48 +17,47 @@ const ProgressDisplay: React.FC<ProgressDisplayProps> = ({
   isOverallChatRunning,
   activeThinkingAgentId
 }) => {
-  if (!isOverallChatRunning && !circles.some(c => c.finalOutput || c.error)) {
-    return null; // Don't show anything if chat hasn't started or nothing to report
-  }
-
   const getCircleStatusInfo = (circle: Circle) => {
-    if (circle.error) return { label: 'Error', color: 'red', value: 100, indeterminate: false };
-    if (circle.finalOutput) return { label: 'Completed', color: 'green', value: 100, indeterminate: false };
+    const agentCount = circle.agents.length;
+    const agentText = `${agentCount} agent${agentCount !== 1 ? 's' : ''}`;
+
+    if (circle.error) return { label: `Error (${agentText})`, color: 'red', value: 100, indeterminate: false };
+    if (circle.finalOutput) return { label: `Completed (${agentText})`, color: 'green', value: 100, indeterminate: false };
     if (circle.isRunning) {
       const progressValue = circle.totalMessagesInCurrentRun && circle.totalMessagesInCurrentRun > 0
         ? ((circle.messagesSentInCurrentRun || 0) / circle.totalMessagesInCurrentRun) * 100
-        : 0; // Or treat as indeterminate if total is 0
+        : 0;
       return {
-        label: `Running... (${Math.round(progressValue)}%)`,
+        label: `Running... (${Math.round(progressValue)}%) - ${agentText}`,
         color: 'blue',
         value: progressValue,
-        indeterminate: circle.totalMessagesInCurrentRun === 0 // Indeterminate if total not set
+        indeterminate: circle.totalMessagesInCurrentRun === 0
       };
     }
-    return { label: 'Pending', color: 'gray', value: 0, indeterminate: false };
+    // Default/Pending state
+    return { label: `Pending (${agentText})`, color: 'gray', value: 0, indeterminate: false };
   };
 
   const allCirclesDone = circles.every(c => c.finalOutput || c.error);
   let judgeStatus = { label: 'Waiting for Circles', color: 'gray' };
-  if (allCirclesDone && isOverallChatRunning) { // isOverallChatRunning implies judge might be next or running
-    if (activeThinkingAgentId === judgeConfig.id) {
-      judgeStatus = { label: 'Judging...', color: 'grape' };
-    } else if (circles.some(c => c.finalOutput) && !activeThinkingAgentId) { // Judge has completed or not started yet but circles are done
-      // This logic is a bit tricky: if overall is still running but judge not thinking, it implies judge completed or errored
-      // For simplicity, if circles are done and something is still "running" but not judge, it's a bit ambiguous
-      // Let's assume judge has completed if circles are done and no one specific is thinking and chat is not overall running.
-      // If chat IS overall running, but judge not thinking and circles done, it means judge has finished.
-      // This needs refinement based on how `isOverallChatRunning` is truly set after judge.
-      const judgeHasMessages = true; // This would come from checking `judgeMessages` in App.tsx if passed here
-      // For now, let's assume if circles are done and chat is NOT overall running, judge is done.
-      if (!isOverallChatRunning && circles.filter(c => !c.error).length > 0) {
-        judgeStatus = { label: 'Judged', color: 'teal' };
-      } else if (isOverallChatRunning && !activeThinkingAgentId) { // Judge might have finished its call
-        judgeStatus = { label: 'Judged', color: 'teal' };
-      }
+
+  if (activeThinkingAgentId === judgeConfig.id) {
+    judgeStatus = { label: 'Judging...', color: 'grape' };
+  } else if (allCirclesDone && circles.filter(c => !c.error).length > 0) {
+    // If all circles are done (completed or errored) and at least one succeeded, 
+    // and judge is not currently thinking, assume judge is done or waiting to be triggered by overall process.
+    // The `isOverallChatRunning` will determine if it shows "Judged" or still "Waiting".
+    if (!isOverallChatRunning) { // If chat is fully stopped, judge is considered done if circles were successful
+      judgeStatus = { label: 'Judged', color: 'teal' };
+    } else { // Chat is still running, but judge not active, and circles done implies judge is next or just finished its step
+      // This could also mean judge errored and error wasn't caught by its own state. 
+      // A more robust way would be a specific judgeIsDone state.
+      // For now, if circles are done and judge not thinking, assume it has completed its step.
+      judgeStatus = { label: 'Ready/Judged', color: 'teal' };
     }
   }
-  if (!isOverallChatRunning && circles.every(c => c.finalOutput || c.error) && circles.filter(c => !c.error).length > 0) {
+  // If isOverallChatRunning is false, and circles are done, explicitly mark judge as Judged
+  if (!isOverallChatRunning && allCirclesDone && circles.filter(c => !c.error).length > 0) {
     judgeStatus = { label: 'Judged', color: 'teal' };
   }
 
@@ -70,8 +69,8 @@ const ProgressDisplay: React.FC<ProgressDisplayProps> = ({
         {circles.map(circle => {
           const statusInfo = getCircleStatusInfo(circle);
           return (
-            <Box key={circle.id} style={{ textAlign: 'center', minWidth: '120px' }}>
-              <Text size="xs" c="dimmed">{circle.name}</Text>
+            <Box key={circle.id} style={{ textAlign: 'center', minWidth: '150px' }}>
+              <Text size="xs" c="dimmed" truncate>{circle.name}</Text>
               <Progress
                 value={statusInfo.value}
                 color={statusInfo.color}

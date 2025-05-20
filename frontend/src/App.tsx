@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 // Use AgentConfig as suggested by the linter hint
 import { AgentConfig, AIType } from '../src/proto/agent_static.js';
 import './App.css'; // We can keep this for now for basic styling
 import { agentTelephone, callGeminiApi } from './services/chatService'; // Import the service and callGeminiApi
-import { MantineProvider, Paper, Group, TextInput, NumberInput, Button, Title, ActionIcon, AppShell, Textarea, FileInput, Loader, Text, Tabs } from '@mantine/core'; // Import Mantine components including Title, ActionIcon, AppShell, FileInput, Loader, Text, Tabs
+import { MantineProvider, Paper, Group, TextInput, NumberInput, Button, Title, ActionIcon, AppShell, Textarea, FileInput, Loader, Text, Tabs, Accordion, Drawer, Modal, Stack, Select } from '@mantine/core'; // Import Mantine components including Title, ActionIcon, AppShell, FileInput, Loader, Text, Tabs, Accordion, Drawer, Modal, Stack, Select
 import { useDisclosure } from '@mantine/hooks'; // Hook for modal open/close
 import { extractTextFromFile } from './utils/fileUtils'; // Import the utility
 
@@ -11,6 +11,7 @@ import AgentConfigForm from './components/AgentConfigForm';
 import ChatDisplay from './components/ChatDisplay';
 import SettingsModal from './components/SettingsModal'; // Uncomment import
 import ProgressDisplay from './components/ProgressDisplay'; // Import ProgressDisplay
+import CirclesConfigDrawer from './components/CirclesConfigDrawer'; // Import the new drawer
 
 // Define AppAgentConfig as a plain interface with all necessary fields
 // It should match the structure of AgentConfig data fields + our own fields.
@@ -88,6 +89,21 @@ const defaultJudgeConfig: AppAgentConfig = {
   aiType: AIType.GEMINI,
 };
 
+// New interface for the entire session/setup configuration
+export interface SessionConfig {
+  name: string; // User-defined name for this setup
+  circles: Circle[];
+  judgeAgentConfig: AppAgentConfig;
+  sharedContext: string;
+  initialPrompt: string;
+  numberOfRounds: number;
+  apiKeys: ApiKeys; // Save API keys too (user should be aware if sharing the file)
+  // Could add versioning or notes later
+  timestamp?: number;
+}
+
+const LOCAL_STORAGE_KEY_PREFIX = "theCircleSetup_";
+
 function App() {
   const [circles, setCircles] = useState<Circle[]>(initialCircles);
   const [judgeAgentConfig, setJudgeAgentConfig] = useState<AppAgentConfig>(defaultJudgeConfig);
@@ -122,6 +138,33 @@ function App() {
   const handleApiKeysChange = (newKeys: ApiKeys) => {
     setApiKeys(newKeys);
   };
+
+  // State for config drawer
+  const [configDrawerOpened, { open: openConfigDrawer, close: closeConfigDrawer }] = useDisclosure(false);
+
+  const [saveModalOpened, { open: openSaveModal, close: closeSaveModal }] = useDisclosure(false);
+  const [saveSetupName, setSaveSetupName] = useState<string>("");
+  const [loadModalOpened, { open: openLoadModal, close: closeLoadModal }] = useDisclosure(false);
+  const [savedSetupNames, setSavedSetupNames] = useState<string[]>([]);
+  const [selectedSetupToLoad, setSelectedSetupToLoad] = useState<string | null>(null);
+
+  // Function to fetch saved setup names from localStorage
+  const fetchSavedSetups = useCallback(() => {
+    const names: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(LOCAL_STORAGE_KEY_PREFIX)) {
+        // Extract name from key: "theCircleSetup_My Name" -> "My Name"
+        names.push(key.substring(LOCAL_STORAGE_KEY_PREFIX.length).replace(/_/g, ' '));
+      }
+    }
+    setSavedSetupNames(names.sort()); // Keep them sorted
+  }, []);
+
+  // Load saved setups on component mount
+  useEffect(() => {
+    fetchSavedSetups();
+  }, [fetchSavedSetups]);
 
   // --- Circle and Agent Management Handlers ---
   const handleAddCircle = () => {
@@ -342,14 +385,119 @@ function App() {
     setIsChatRunning(false);
   };
 
+  const handleSaveSetup = () => {
+    if (!saveSetupName.trim()) {
+      // TODO: Show notification - setup name cannot be empty
+      console.error("Setup name cannot be empty.");
+      return;
+    }
+
+    const currentConfig: SessionConfig = {
+      name: saveSetupName.trim(),
+      circles,
+      judgeAgentConfig,
+      sharedContext,
+      initialPrompt,
+      numberOfRounds,
+      apiKeys, // Note: Storing API keys in localStorage has security implications
+      // It's better than hardcoding but not as secure as a backend vault.
+      // User should be aware if they export/share this data.
+      timestamp: Date.now(),
+    };
+
+    try {
+      const configKey = `theCircleSetup_${currentConfig.name.replace(/\s+/g, '_')}`;
+      localStorage.setItem(configKey, JSON.stringify(currentConfig));
+      // TODO: Show success notification
+      console.log(`Setup "${currentConfig.name}" saved as ${configKey}`);
+      closeSaveModal();
+      setSaveSetupName(""); // Reset for next save
+    } catch (error) {
+      console.error("Error saving setup to localStorage:", error);
+      // TODO: Show error notification
+    }
+  };
+
+  const handleLoadSetup = () => {
+    if (!selectedSetupToLoad) {
+      console.error("No setup selected to load.");
+      // TODO: Show notification
+      return;
+    }
+    const configKey = `${LOCAL_STORAGE_KEY_PREFIX}${selectedSetupToLoad.replace(/\s+/g, '_')}`;
+    try {
+      const savedConfigJSON = localStorage.getItem(configKey);
+      if (savedConfigJSON) {
+        const savedConfig: SessionConfig = JSON.parse(savedConfigJSON);
+
+        // Apply the loaded configuration
+        setCircles(savedConfig.circles || initialCircles); // Fallback to initial if missing
+        setJudgeAgentConfig(savedConfig.judgeAgentConfig || defaultJudgeConfig);
+        setSharedContext(savedConfig.sharedContext || "");
+        setInitialPrompt(savedConfig.initialPrompt || "Agent 1, begin...");
+        setNumberOfRounds(savedConfig.numberOfRounds || 2);
+        setApiKeys(savedConfig.apiKeys || {}); // Ensure apiKeys is an object
+
+        // Reset runtime states
+        setJudgeMessages([]);
+        setSharedContextFileName(null); // Filename is not saved, only content
+        setThinkingAgentId(null);
+        setIsChatRunning(false);
+        if (savedConfig.circles && savedConfig.circles.length > 0) {
+          setActiveTab(savedConfig.circles[0].id);
+        } else {
+          setActiveTab("judge-output");
+        }
+
+        // TODO: Show success notification
+        console.log(`Setup "${selectedSetupToLoad}" loaded.`);
+        closeLoadModal();
+        setSelectedSetupToLoad(null); // Reset selection
+      } else {
+        throw new Error(`Setup "${selectedSetupToLoad}" not found in localStorage.`);
+      }
+    } catch (error) {
+      console.error("Error loading setup from localStorage:", error);
+      // TODO: Show error notification
+    }
+  };
+
+  const handleDeleteSetup = (setupNameToDelete: string) => {
+    if (!setupNameToDelete) return;
+    const configKey = `${LOCAL_STORAGE_KEY_PREFIX}${setupNameToDelete.replace(/\s+/g, '_')}`;
+    try {
+      localStorage.removeItem(configKey);
+      fetchSavedSetups(); // Refresh the list
+      if (selectedSetupToLoad === setupNameToDelete) {
+        setSelectedSetupToLoad(null); // Clear selection if deleted
+      }
+      console.log(`Setup "${setupNameToDelete}" deleted.`);
+      // TODO: Show success notification
+    } catch (error) {
+      console.error("Error deleting setup:", error);
+      // TODO: Show error notification
+    }
+  };
+
   return (
     <AppShell header={{ height: 60 }} padding="md">
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
           <Title order={3}>The Circle</Title> {/* Simplified Title */}
-          <Button variant="default" size="sm" onClick={openSettingsModal}>
-            Settings
-          </Button>
+          <Group>
+            <Button variant="light" size="sm" onClick={openSaveModal} disabled={isChatRunning}>
+              Save Setup
+            </Button>
+            <Button variant="light" size="sm" onClick={() => { fetchSavedSetups(); openLoadModal(); }} disabled={isChatRunning}>
+              Load Setup
+            </Button>
+            <Button variant="default" size="sm" onClick={openConfigDrawer}>
+              Configure Circles & Agents
+            </Button>
+            <Button variant="default" size="sm" onClick={openSettingsModal}>
+              Settings
+            </Button>
+          </Group>
         </Group>
       </AppShell.Header>
 
@@ -362,57 +510,8 @@ function App() {
           activeThinkingAgentId={thinkingAgentId}
         />
 
-        <div className="main-content-area"> {/* Wrapper for config and chat */}
-          <section className="config-section agent-circles-config">
-            <Group justify="space-between" mb="sm">
-              <Title order={3}>Circles</Title>
-              <Button onClick={handleAddCircle} disabled={isChatRunning} size="xs" variant="light">
-                Add Circle
-              </Button>
-            </Group>
-            <div className="circle-list"> {/* Scrollable container for circles */}
-              {circles.map(circle => (
-                <Paper key={circle.id} p="xs" withBorder mb="sm" className="circle-config-item">
-                  <Group justify="space-between">
-                    <TextInput
-                      value={circle.name}
-                      onChange={(e) => handleUpdateCircleName(circle.id, e.currentTarget.value)}
-                      variant="unstyled"
-                      size="sm"
-                      styles={{ input: { fontWeight: 500, fontSize: 'var(--mantine-font-size-md)' } }}
-                    />
-                    <Button onClick={() => handleRemoveCircle(circle.id)} size="xs" variant="subtle" color="red">Remove Circle</Button>
-                  </Group>
-                  <Button onClick={() => handleAddAgentToCircle(circle.id)} size="xs" variant="outline" mt="xs" mb="xs" fullWidth>
-                    + Add Agent to {circle.name}
-                  </Button>
-                  <div className="agent-list-inner">
-                    {circle.agents.map(agent => (
-                      <AgentConfigForm
-                        key={agent.id}
-                        agent={agent}
-                        onUpdate={(updatedAgent) => handleUpdateAgentInCircle(circle.id, updatedAgent)}
-                        onRemove={() => handleRemoveAgentFromCircle(circle.id, agent.id)}
-                      />
-                    ))}
-                  </div>
-                </Paper>
-              ))}
-            </div>
-            {/* Judge Agent Configuration - simplified for now */}
-            <Paper p="xs" withBorder mt="lg" className="judge-config-item">
-              <Title order={4} mb="xs">Judge Agent</Title>
-              <Textarea
-                label="Judge System Prompt"
-                value={judgeAgentConfig.systemPrompt || ''}
-                onChange={(e) => setJudgeAgentConfig(prev => ({ ...prev, systemPrompt: e.currentTarget.value }))}
-                autosize minRows={2} maxRows={4} size="sm"
-              />
-              {/* Can add model/type select for judge later */}
-            </Paper>
-          </section>
-
-          <section className="chat-display-section">
+        <div className="main-content-area" style={{ flexDirection: 'column' }}> {/* Force column for now */}
+          <section className="chat-display-section" style={{ flex: '1' }}> {/* Chat takes full available space */}
             <Title order={3} mb="sm">Chat Flow</Title>
 
             <Paper shadow="xs" p="sm" withBorder mb="md" className="shared-context-bar">
@@ -506,6 +605,70 @@ function App() {
           apiKeys={apiKeys}
           onSave={handleApiKeysChange}
         />
+        <CirclesConfigDrawer
+          opened={configDrawerOpened}
+          onClose={closeConfigDrawer}
+          circles={circles}
+          apiKeys={apiKeys}
+          judgeAgentConfig={judgeAgentConfig}
+          onUpdateJudgeConfig={setJudgeAgentConfig} // Pass the setter
+          onAddCircle={handleAddCircle}
+          onRemoveCircle={handleRemoveCircle}
+          onUpdateCircleName={handleUpdateCircleName}
+          onAddAgentToCircle={handleAddAgentToCircle}
+          onRemoveAgentFromCircle={handleRemoveAgentFromCircle}
+          onUpdateAgentInCircle={handleUpdateAgentInCircle}
+        />
+
+        {/* Save Setup Modal */}
+        <Modal opened={saveModalOpened} onClose={closeSaveModal} title="Save Current Setup" centered>
+          <Stack>
+            <TextInput
+              label="Setup Name"
+              placeholder="Enter a name for this setup..."
+              value={saveSetupName}
+              onChange={(event) => setSaveSetupName(event.currentTarget.value)}
+              data-autofocus
+            />
+            <Group justify="flex-end" mt="md">
+              <Button variant="default" onClick={closeSaveModal}>Cancel</Button>
+              <Button onClick={handleSaveSetup}>Save</Button>
+            </Group>
+          </Stack>
+        </Modal>
+
+        {/* Load Setup Modal */}
+        <Modal opened={loadModalOpened} onClose={closeLoadModal} title="Load Saved Setup" centered>
+          <Stack>
+            {savedSetupNames.length > 0 ? (
+              <Select
+                label="Choose a setup to load"
+                placeholder="Select a setup..."
+                data={savedSetupNames.map(name => ({ value: name, label: name }))}
+                value={selectedSetupToLoad}
+                onChange={setSelectedSetupToLoad}
+                clearable
+              />
+            ) : (
+              <Text c="dimmed">No saved setups found.</Text>
+            )}
+            <Group justify="space-between" mt="md">
+              <Button
+                variant="outline"
+                color="red"
+                onClick={() => selectedSetupToLoad && handleDeleteSetup(selectedSetupToLoad)}
+                disabled={!selectedSetupToLoad}
+              >
+                Delete Selected
+              </Button>
+              <Group>
+                <Button variant="default" onClick={closeLoadModal}>Cancel</Button>
+                <Button onClick={handleLoadSetup} disabled={!selectedSetupToLoad}>Load</Button>
+              </Group>
+            </Group>
+          </Stack>
+        </Modal>
+
       </AppShell.Main>
     </AppShell>
   );

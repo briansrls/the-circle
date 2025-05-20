@@ -2,6 +2,7 @@ import React from 'react';
 import type { AppAgentConfig, Circle } from '../App'; // Need this for agent names and circles
 import { AIType } from '../../src/proto/agent_static.js'; // Import AIType for labels
 import { Text } from '@mantine/core'; // Import Mantine Text
+import ReactMarkdown from 'react-markdown'; // Import ReactMarkdown
 
 // Placeholder type - will be replaced or augmented
 interface Message {
@@ -54,17 +55,18 @@ const ChatDisplay: React.FC<ChatDisplayProps> = ({ messages, thinkingAgentId, ag
     <div className="chat-display">
       {messages.map((msg) => {
         const isJudgeOutputMessage = msg.circleId === "judge-output";
+        const isJudgeAgentMessage = msg.agentId === "judge-agent"; // Alternative check if circleId isn't always judge-output for judge
 
         const bubbleClasses = [
           'message-bubble',
           `message-${msg.role}`,
           msg.subRole ? `message-${msg.subRole}` : '',
-          (isJudgeOutputMessage && msg.role === 'assistant') ? 'message-judge-assistant' : '',
-          (isJudgeOutputMessage && msg.role === 'system') ? 'message-judge-system' : '',
+          (isJudgeOutputMessage || isJudgeAgentMessage) && msg.role === 'assistant' ? 'message-judge-assistant' : '',
+          (isJudgeOutputMessage || isJudgeAgentMessage) && msg.role === 'system' ? 'message-judge-system' : '',
         ].filter(Boolean).join(' ');
 
         let bubbleStyle = {};
-        if (msg.role === 'assistant' && msg.agentId && !isJudgeOutputMessage) {
+        if (msg.role === 'assistant' && msg.agentId && !(isJudgeOutputMessage || isJudgeAgentMessage)) {
           const agentIndex = agentIndexMap.get(msg.agentId);
           if (agentIndex !== undefined) {
             const colorPair = agentColorPairs[agentIndex % agentColorPairs.length];
@@ -79,21 +81,25 @@ const ChatDisplay: React.FC<ChatDisplayProps> = ({ messages, thinkingAgentId, ag
           ? aiTypeOptions.find(opt => opt.value === String(msg.aiType))?.label || `Type ${msg.aiType}`
           : null;
 
-        const circleName = !isJudgeOutputMessage && msg.circleId ? circleNameMap.get(msg.circleId) : null;
+        const circleName = !(isJudgeOutputMessage || isJudgeAgentMessage) && msg.circleId ? circleNameMap.get(msg.circleId) : null;
         const displayAgentName = circleName ? `${circleName} - ${msg.agentName}` : msg.agentName;
 
         return (
           <div key={msg.id} className={bubbleClasses} style={bubbleStyle}>
             <strong>
               {displayAgentName}
-              {msg.roundNum && !isJudgeOutputMessage && <span style={{ fontWeight: 'normal', marginLeft: '8px' }}>(R{msg.roundNum})</span>}
+              {msg.roundNum && !(isJudgeOutputMessage || isJudgeAgentMessage) && <span style={{ fontWeight: 'normal', marginLeft: '8px' }}>(R{msg.roundNum})</span>}
             </strong>
-            {msg.role === 'assistant' && (msg.model || aiTypeLabel) && (
+            {(msg.role === 'assistant') && (msg.model || aiTypeLabel) && (
               <Text size="xs" c="dimmed" mt={-4} mb={4} className="message-meta">
                 {aiTypeLabel ? `${aiTypeLabel}` : ''}{msg.model && aiTypeLabel ? ' / ' : ''}{msg.model ? `${msg.model}` : ''}
               </Text>
             )}
-            <p style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</p>
+            {msg.role === 'assistant' ? (
+              <ReactMarkdown>{msg.content}</ReactMarkdown>
+            ) : (
+              <p style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</p>
+            )}
             <small>{msg.timestamp.toLocaleTimeString()}</small>
           </div>
         );

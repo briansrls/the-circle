@@ -74,6 +74,39 @@ export async function callGeminiApi(
 // Placeholder for other API calls (OpenAI, Claude, etc.)
 // async function callOpenAiApi(...) { ... }
 
+// New function to generate system prompts
+export async function generateSystemPromptForAgent(
+  agentName: string,
+  apiKey?: string // Optional API key, uses Gemini by default
+): Promise<string> {
+  if (!agentName.trim()) {
+    throw new Error("Agent name cannot be empty to generate a prompt.");
+  }
+
+  const effectiveApiKey = apiKey || import.meta.env.VITE_DEFAULT_GEMINI_API_KEY as string;
+  if (!effectiveApiKey) {
+    throw new Error("Gemini API Key not configured for prompt generation.");
+  }
+
+  const modelForPromptGeneration = "gemini-1.5-flash-latest"; // Use a fast, free-tier model
+  const metaPrompt =
+    `Based on the agent role name "${agentName}", generate a concise and effective system prompt for that agent. 
+The system prompt should instruct the agent on its persona and primary task. 
+Focus on a helpful and direct tone. 
+Output ONLY the system prompt itself, without any preamble, explanation, or quotation marks.`;
+
+  const messages = [{ role: 'user', parts: [{ text: metaPrompt }] }];
+
+  try {
+    // Using callGeminiApi, assuming systemPrompt for meta-prompter is null
+    const generatedPrompt = await callGeminiApi(effectiveApiKey, modelForPromptGeneration, null, messages);
+    return generatedPrompt.trim(); // Trim any leading/trailing whitespace
+  } catch (error) {
+    console.error("Error in generateSystemPromptForAgent:", error);
+    throw new Error(`Failed to generate system prompt: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 export async function agentTelephone(
   agents: AppAgentConfig[],
   initialPrompt: string,

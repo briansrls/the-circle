@@ -50,7 +50,7 @@
   --input-bg-dark: #37474f;
   --input-border-dark: #546e7a;
   --input-focus-border-dark: var(--button-bg-dark);
-  --input-text-dark: var(--text-primary-dark);
+  --input-text-dark: var(--input-text-dark);
 
   --judge-bubble-bg-dark: #424242;   /* Darker Grey */
   --judge-bubble-text-dark: #eeeeee; /* Light Grey Text */
@@ -153,38 +153,33 @@ body {
 /* Added display:flex and default direction */
 .main-content-area {
   display: flex;
-  flex-direction: column; /* Default direction */
-  flex-grow: 1; /* Allow this area to grow */
-  gap: 1rem; /* Keep the gap between sections */
+  flex-direction: column; /* Default to column for chat and controls */
+  flex-grow: 1; 
+  gap: 1rem; 
 }
 
 @media (min-width: 768px) {
   .main-content-area {
-    flex-direction: row; /* Switch to row on wider screens */
-    align-items: flex-start; /* Align items to the top */
+    /* Now only contains chat-display-section and its controls, no side-by-side needed here anymore */
+    /* flex-direction: row; */ 
+    /* align-items: flex-start; */
   }
 }
 
-.config-section, .chat-display-section {
-  background-color: var(--bg-section);
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* Shadow might need adjustment for dark mode */
-  border: 1px solid var(--border-color);
-}
-
+/* Remove or repurpose .config-section styles if it's no longer a main layout block */
 .config-section {
-  flex: 1; /* Takes 1 part of available space */
-  min-width: 240px; /* Can shrink a bit more */
-  padding: 0.75rem; 
-  background-color: var(--bg-section);
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  border: 1px solid var(--border-color);
+  /* display: none; */ /* If completely removed from App.tsx layout */
+  /* Or adjust if it still exists for some summary info */
+  flex: none; /* Remove flex sizing if it was a side panel */
+  min-width: auto;
+  padding: 0; /* Remove padding if it's just a conceptual wrapper now */
+  border: none;
+  box-shadow: none;
+  background-color: transparent;
 }
 
 .chat-display-section {
-  flex: 3; 
+  flex: 1 !important; /* Allow chat section to take full width if config panel is gone */
   display: flex;
   flex-direction: column;
   background-color: var(--bg-section);
@@ -550,4 +545,44 @@ button:disabled {
 }
 .message-judge-system strong {
    color: color-mix(in srgb, var(--judge-system-bubble-text-light) 70%, #000000 30%);
+}
+
+.agent-config-form textarea {
+  min-height: 30px !important; 
+  vertical-align: top; 
+}
+
+/* Styles for Circle Configuration UI */
+.agent-circles-config .mantine-Accordion-control {
+  padding-top: var(--mantine-spacing-xs);
+  padding-bottom: var(--mantine-spacing-xs);
+}
+
+.agent-circles-config .mantine-Accordion-content {
+  padding-left: var(--mantine-spacing-sm);
+  padding-right: var(--mantine-spacing-sm);
+  padding-bottom: var(--mantine-spacing-sm);
+}
+
+.circle-config-item .mantine-Accordion-control:hover {
+  background-color: var(--mantine-color-gray-0); /* Or your theme hover color */
+}
+
+@media (prefers-color-scheme: dark) {
+  .circle-config-item .mantine-Accordion-control:hover {
+    background-color: var(--mantine-color-dark-6); /* Dark theme hover */
+  }
+}
+
+.agent-list-inner {
+  max-height: 400px; /* Example max height, adjust as needed */
+  overflow-y: auto;  /* Add scroll if many agents */
+  padding-right: var(--mantine-spacing-xs); /* Space for scrollbar */
+}
+
+.judge-config-item-drawer {
+  background-color: color-mix(in srgb, var(--bg-section) 95%, var(--border-color) 5%);
+  /* Ensure judge config in drawer has consistent padding/margin if needed */
+  padding: var(--mantine-spacing-sm);
+  border-radius: var(--mantine-radius-md);
 }

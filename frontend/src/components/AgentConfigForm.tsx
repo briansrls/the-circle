@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import type { AppAgentConfig } from '../App'; // TYPE-ONLY IMPORT
 import { AIType } from '../../src/proto/agent_static.js'; // Path to compiled proto
-import { TextInput, Textarea, Select, Button, Paper, Stack, Title, Group, FileInput, Text, Loader } from '@mantine/core';
+import { TextInput, Textarea, Select, Button, Paper, Stack, Title, Group, FileInput, Text, Loader, ActionIcon, Tooltip } from '@mantine/core';
+import { Wand as WandIcon } from 'tabler-icons-react'; // Example icon
 import { extractTextFromFile } from '../utils/fileUtils'; // Import the utility
+import { generateSystemPromptForAgent } from '../services/chatService'; // Corrected import path
 
 // Type for PDF item (based on pdf.js structure)
 // interface PdfTextItem { ... }
@@ -14,6 +16,7 @@ interface AgentConfigFormProps {
   agent: AppAgentConfig;
   onUpdate: (updatedAgent: AppAgentConfig) => void;
   onRemove: (agentId: string) => void;
+  apiKeys: { [key in AIType]?: string };
 }
 
 // TEMPORARILY HARDCODE aiTypeOptions for debugging
@@ -35,11 +38,12 @@ const geminiModelOptions = [
   { value: 'gemini-1.5-flash-latest', label: '1.5 Flash (Free Tier)' },
 ];
 
-const AgentConfigForm: React.FC<AgentConfigFormProps> = ({ agent, onUpdate, onRemove }) => {
+const AgentConfigForm: React.FC<AgentConfigFormProps> = ({ agent, onUpdate, onRemove, apiKeys }) => {
   // Local state to display the name of the uploaded file
   const [seedFileName, setSeedFileName] = useState<string | null>(null);
   const [isParsingFile, setIsParsingFile] = useState<boolean>(false);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
 
   const handleSimpleChange = (name: keyof AppAgentConfig, value: any) => {
     onUpdate({ ...agent, [name]: value });
@@ -79,6 +83,25 @@ const AgentConfigForm: React.FC<AgentConfigFormProps> = ({ agent, onUpdate, onRe
     ? `Using default (******${defaultGeminiApiKeyFromEnv.slice(-4)})`
     : "Enter API Key if needed";
 
+  const handleGeneratePrompt = async () => {
+    if (!agent.name) {
+      console.warn("Agent name is empty, cannot generate prompt.");
+      return;
+    }
+    setIsGeneratingPrompt(true);
+    try {
+      // Use the real API call
+      const generatedPrompt = await generateSystemPromptForAgent(agent.name, apiKeys[AIType.GEMINI]);
+      onUpdate({ ...agent, systemPrompt: generatedPrompt });
+    } catch (error) {
+      console.error("Error generating system prompt:", error);
+      // Optionally, show a user-facing notification via Mantine notifications or similar
+      // For now, error is logged.
+    } finally {
+      setIsGeneratingPrompt(false);
+    }
+  };
+
   return (
     <Paper shadow="xs" p="sm" mt="sm" withBorder>
       <Stack gap={0}>
@@ -104,7 +127,16 @@ const AgentConfigForm: React.FC<AgentConfigFormProps> = ({ agent, onUpdate, onRe
         />
 
         <Textarea
-          label="System Prompt"
+          label={
+            <Group justify="space-between" style={{ width: '100%' }}>
+              <Text component="span" size="sm">System Prompt</Text>
+              <Tooltip label="Generate prompt based on agent name" withArrow position="top-end">
+                <ActionIcon variant="subtle" size="xs" onClick={handleGeneratePrompt} loading={isGeneratingPrompt} aria-label="Generate system prompt">
+                  <WandIcon size={14} />
+                </ActionIcon>
+              </Tooltip>
+            </Group>
+          }
           name="systemPrompt"
           value={agent.systemPrompt || ''}
           onChange={(e) => handleSimpleChange('systemPrompt', e.currentTarget.value)}
