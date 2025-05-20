@@ -2,14 +2,10 @@ import React, { useState } from 'react';
 import type { AppAgentConfig } from '../App'; // TYPE-ONLY IMPORT
 import { AIType } from '../../src/proto/agent_static.js'; // Path to compiled proto
 import { TextInput, Textarea, Select, Button, Paper, Stack, Title, Group, FileInput, Text, Loader } from '@mantine/core';
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
-import mammoth from 'mammoth';
+import { extractTextFromFile } from '../utils/fileUtils'; // Import the utility
 
 // Type for PDF item (based on pdf.js structure)
 // interface PdfTextItem { ... }
-
-// Set workerSrc to the path relative to the public directory
-GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
 
 // Remove the old placeholder AgentConfig interface if it's still here
 // interface AgentConfig { ... }
@@ -32,11 +28,11 @@ const aiTypeOptions = Object.keys(AIType)
   .map(key => ({ value: String((AIType as any)[key]), label: key }));
 */
 
-// Define specific models for Gemini - temporarily remove grouping
+// Define specific models for Gemini - update defaults and labels
 const geminiModelOptions = [
+  { value: 'gemini-2.5-pro-preview-03-25', label: '2.5 Pro Preview (Exp)' }, // New default
   { value: 'gemini-1.5-pro-latest', label: '1.5 Pro (Paid)' },
   { value: 'gemini-1.5-flash-latest', label: '1.5 Flash (Free Tier)' },
-  { value: 'gemini-2.5-pro-exp-03-25', label: '2.5 Pro (Experimental)' },
 ];
 
 const AgentConfigForm: React.FC<AgentConfigFormProps> = ({ agent, onUpdate, onRemove }) => {
@@ -57,34 +53,11 @@ const AgentConfigForm: React.FC<AgentConfigFormProps> = ({ agent, onUpdate, onRe
     if (file) {
       setSeedFileName(file.name);
       setIsParsingFile(true);
-      let fileContent: string | null = null;
-
       try {
-        if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
-          fileContent = await file.text();
-        } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-          const arrayBuffer = await file.arrayBuffer();
-          const pdf = await getDocument({ data: arrayBuffer }).promise;
-          let text = '';
-          for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const textContent = await page.getTextContent();
-            text += textContent.items
-              .filter(item => 'str' in item && typeof (item as any).str === 'string')
-              .map(item => (item as any).str)
-              .join(' ') + '\n';
-          }
-          fileContent = text;
-        } else if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.endsWith('.docx')) {
-          const arrayBuffer = await file.arrayBuffer();
-          const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
-          fileContent = result.value;
-        } else {
-          throw new Error('Unsupported file type. Please use .txt, .pdf, or .docx');
-        }
+        const fileContent = await extractTextFromFile(file);
         onUpdate({ ...agent, seedContent: fileContent });
-      } catch (error: any) { // Catch specific errors if needed
-        console.error("Error reading or parsing file:", error);
+      } catch (error: any) {
+        console.error("Error reading or parsing file in AgentConfigForm:", error);
         setParseError(`Error: ${error?.message || 'Failed to parse file'}`);
         onUpdate({ ...agent, seedContent: null }); // Clear content on error
         setSeedFileName(`Error: ${file.name}`);
@@ -189,7 +162,8 @@ const AgentConfigForm: React.FC<AgentConfigFormProps> = ({ agent, onUpdate, onRe
             onChange={(value) => {
               const newType = value ? parseInt(value, 10) : undefined;
               let modelToSet = agent.model;
-              if (newType === AIType.GEMINI && !geminiModelOptions.some(opt => opt.value === modelToSet)) {
+              if (newType === AIType.GEMINI &&
+                (!modelToSet || !geminiModelOptions.some(opt => opt.value === modelToSet))) {
                 modelToSet = geminiModelOptions[0].value;
               }
               onUpdate({ ...agent, aiType: newType, model: modelToSet });

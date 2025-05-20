@@ -1,5 +1,5 @@
 import React from 'react';
-import type { AppAgentConfig } from '../App'; // Need this for agent names
+import type { AppAgentConfig, Circle } from '../App'; // Need this for agent names and circles
 import { AIType } from '../../src/proto/agent_static.js'; // Import AIType for labels
 import { Text } from '@mantine/core'; // Import Mantine Text
 
@@ -15,12 +15,14 @@ interface Message {
   agentId?: string; // Ensure interface matches App.tsx
   model?: string | null; // Ensure interface matches App.tsx
   aiType?: AIType | null; // Ensure interface matches App.tsx
+  circleId?: string; // Add circleId if not already present and typed
 }
 
 interface ChatDisplayProps {
   messages: Message[];
   thinkingAgentId: string | null; // Add prop for thinking agent ID
   agents: AppAgentConfig[]; // Add prop for agent list to get names
+  circles?: Circle[]; // Ensure this is optional if App.tsx might not pass it (e.g. for Judge tab)
 }
 
 // Define a list of pastel color pairs for agent bubbles
@@ -40,28 +42,29 @@ const aiTypeOptions = [
   { value: '2', label: 'CLAUDE' },
 ];
 
-const ChatDisplay: React.FC<ChatDisplayProps> = ({ messages, thinkingAgentId, agents }) => {
-  const thinkingAgent = agents.find(agent => agent.id === thinkingAgentId);
-
-  // Create a map for quick agent index lookup
+const ChatDisplay: React.FC<ChatDisplayProps> = ({ messages, thinkingAgentId, agents, circles }) => {
   const agentIndexMap = new Map(agents.map((agent, index) => [agent.id, index]));
+  const circleNameMap = new Map(circles?.map(circle => [circle.id, circle.name]));
 
-  if (!messages || messages.length === 0) {
+  if (!messages || messages.length === 0 && !thinkingAgentId) {
     return <p>No messages yet. Start a chat!</p>;
   }
 
   return (
     <div className="chat-display">
       {messages.map((msg) => {
-        // Determine specific class based on role and subRole
+        const isJudgeOutputMessage = msg.circleId === "judge-output";
+
         const bubbleClasses = [
           'message-bubble',
           `message-${msg.role}`,
-          msg.subRole ? `message-${msg.subRole}` : '' // e.g., message-thinking-prompt
-        ].filter(Boolean).join(' '); // Filter out empty strings and join
+          msg.subRole ? `message-${msg.subRole}` : '',
+          (isJudgeOutputMessage && msg.role === 'assistant') ? 'message-judge-assistant' : '',
+          (isJudgeOutputMessage && msg.role === 'system') ? 'message-judge-system' : '',
+        ].filter(Boolean).join(' ');
 
         let bubbleStyle = {};
-        if (msg.role === 'assistant' && msg.agentId) {
+        if (msg.role === 'assistant' && msg.agentId && !isJudgeOutputMessage) {
           const agentIndex = agentIndexMap.get(msg.agentId);
           if (agentIndex !== undefined) {
             const colorPair = agentColorPairs[agentIndex % agentColorPairs.length];
@@ -72,18 +75,19 @@ const ChatDisplay: React.FC<ChatDisplayProps> = ({ messages, thinkingAgentId, ag
           }
         }
 
-        // Get AI Type label for display
         const aiTypeLabel = msg.aiType !== undefined && msg.aiType !== null
           ? aiTypeOptions.find(opt => opt.value === String(msg.aiType))?.label || `Type ${msg.aiType}`
           : null;
 
+        const circleName = !isJudgeOutputMessage && msg.circleId ? circleNameMap.get(msg.circleId) : null;
+        const displayAgentName = circleName ? `${circleName} - ${msg.agentName}` : msg.agentName;
+
         return (
           <div key={msg.id} className={bubbleClasses} style={bubbleStyle}>
             <strong>
-              {msg.agentName}
-              {msg.roundNum && <span style={{ fontWeight: 'normal', marginLeft: '8px' }}>(R{msg.roundNum})</span>}
+              {displayAgentName}
+              {msg.roundNum && !isJudgeOutputMessage && <span style={{ fontWeight: 'normal', marginLeft: '8px' }}>(R{msg.roundNum})</span>}
             </strong>
-            {/* Display Model/Type if available (for assistant messages) */}
             {msg.role === 'assistant' && (msg.model || aiTypeLabel) && (
               <Text size="xs" c="dimmed" mt={-4} mb={4} className="message-meta">
                 {aiTypeLabel ? `${aiTypeLabel}` : ''}{msg.model && aiTypeLabel ? ' / ' : ''}{msg.model ? `${msg.model}` : ''}
@@ -95,47 +99,50 @@ const ChatDisplay: React.FC<ChatDisplayProps> = ({ messages, thinkingAgentId, ag
         );
       })}
 
-      {/* Render thinking indicator - Use the same color logic */}
       {thinkingAgentId && (() => {
-        const agentIndex = agentIndexMap.get(thinkingAgentId);
+        const agentInfo = agents.find(a => a.id === thinkingAgentId);
+        const isJudgeThinking = thinkingAgentId === "judge-agent"; // Hardcoded ID for the judge
+
         let thinkingStyle = {};
-        if (agentIndex !== undefined) {
-          const colorPair = agentColorPairs[agentIndex % agentColorPairs.length];
-          thinkingStyle = {
-            backgroundColor: colorPair.background,
-            color: colorPair.text,
-          };
+        let thinkingBubbleClasses = ['message-bubble', 'message-assistant', 'message-thinking'];
+
+        if (isJudgeThinking) {
+          thinkingBubbleClasses.push('message-judge-assistant');
+        } else if (agentInfo) {
+          const agentIndex = agentIndexMap.get(thinkingAgentId);
+          if (agentIndex !== undefined) {
+            const colorPair = agentColorPairs[agentIndex % agentColorPairs.length];
+            thinkingStyle = { backgroundColor: colorPair.background, color: colorPair.text };
+          }
         }
-        // Find model/type info for thinking agent
-        const thinkingAgentInfo = agents.find(a => a.id === thinkingAgentId);
-        const thinkingAiTypeLabel = thinkingAgentInfo?.aiType !== undefined && thinkingAgentInfo?.aiType !== null
-          ? aiTypeOptions.find(opt => opt.value === String(thinkingAgentInfo.aiType))?.label || `Type ${thinkingAgentInfo.aiType}`
+
+        const displayThinkingAgentName = isJudgeThinking
+          ? (agentInfo?.name || 'Judge')
+          : (agents.find(a => a.id === thinkingAgentId)?.name || `Agent...`);
+
+        // Add circle prefix for non-judge thinking agent
+        let finalThinkingName = displayThinkingAgentName;
+        if (!isJudgeThinking && circles && agentInfo) {
+          const parentCircle = circles.find(c => c.agents.some(a => a.id === thinkingAgentId));
+          if (parentCircle) finalThinkingName = `${parentCircle.name} - ${agentInfo.name}`;
+        }
+
+        const thinkingAiTypeLabel = agentInfo?.aiType !== undefined && agentInfo?.aiType !== null
+          ? aiTypeOptions.find(opt => opt.value === String(agentInfo.aiType))?.label || `Type ${agentInfo.aiType}`
           : null;
 
         return (
-          <div key="thinking-indicator" className="message-bubble message-assistant message-thinking" style={thinkingStyle}>
-            <strong>
-              {thinkingAgent?.name || `Agent ${thinkingAgentId.substring(6, 10)}...`}
-            </strong>
-            {/* Also show model/type in thinking bubble */}
-            {(thinkingAgentInfo?.model || thinkingAiTypeLabel) && (
+          <div key="thinking-indicator" className={thinkingBubbleClasses.join(' ')} style={thinkingStyle}>
+            <strong>{finalThinkingName}</strong>
+            {agentInfo?.model && thinkingAiTypeLabel && (
               <Text size="xs" c="dimmed" mt={-4} mb={4} className="message-meta">
-                {thinkingAiTypeLabel ? `${thinkingAiTypeLabel}` : ''}{thinkingAgentInfo?.model && thinkingAiTypeLabel ? ' / ' : ''}{thinkingAgentInfo?.model ? `${thinkingAgentInfo.model}` : ''}
+                {thinkingAiTypeLabel ? `${thinkingAiTypeLabel}` : ''}{agentInfo?.model && thinkingAiTypeLabel ? ' / ' : ''}{agentInfo?.model ? `${agentInfo.model}` : ''}
               </Text>
             )}
-            <div className="thinking-dots">
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
+            <div className="thinking-dots"><span></span><span></span><span></span></div>
           </div>
         );
       })()}
-
-      {/* Display initial message if chat hasn't started and no one is thinking */}
-      {messages.length === 0 && !thinkingAgentId && (
-        <p>No messages yet. Start a chat!</p>
-      )}
     </div>
   );
 };

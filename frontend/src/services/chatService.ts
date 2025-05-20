@@ -2,7 +2,7 @@ import type { AppAgentConfig, Message, ApiKeys } from '../App'; // Types from Ap
 import { AIType } from '../proto/agent_static.js'; // Import AIType enum
 
 // Actual API call to Gemini
-async function callGeminiApi(
+export async function callGeminiApi(
   apiKey: string,
   model: string, // e.g., "gemini-1.5-pro-latest"
   systemPrompt: string | null | undefined,
@@ -82,13 +82,20 @@ export async function agentTelephone(
   onChainComplete: (finalMessage: string) => void, // Callback for when the chain finishes
   onAgentStartThinking: (agentId: string) => void, // Add new callback param
   onAgentEndThinking: () => void,                // Add new callback param
-  apiKeys: ApiKeys // Add apiKeys parameter
+  apiKeys: ApiKeys, // Add apiKeys parameter
+  sharedContext: string, // Add sharedContext parameter
+  onProgressUpdate: (messagesSent: number, totalMessages: number) => void // New callback
 ): Promise<void> {
   if (agents.length < 1) { // Changed from < 2 to allow single agent interaction if desired
     console.warn("Need at least 1 agent for a telephone chain.");
     onChainComplete("Error: Not enough agents.");
     return;
   }
+
+  const totalMessagesToExpect = agents.length * rounds;
+  let messagesSentThisRun = 0;
+  // Call initial progress update
+  onProgressUpdate(messagesSentThisRun, totalMessagesToExpect);
 
   let previousRoundContext = initialPrompt;
   console.log(`--- STARTING TELEPHONE CHAIN ---`);
@@ -119,6 +126,14 @@ export async function agentTelephone(
     for (let i = 0; i < agents.length; i++) {
       const agent = agents[i];
       const turnSpecificMessageHistory: { role: string; content: string }[] = [];
+
+      // Prepend sharedContext to the very first prompt
+      if (i === 0 && roundNum === 0 && sharedContext.trim() !== "") {
+        turnSpecificMessageHistory.push({
+          role: 'user', // Or 'system' depending on how the API best handles it
+          content: `IMPORTANT SHARED CONTEXT:\n${sharedContext}\n\n---\n\nTASK STARTS NOW:`
+        });
+      }
 
       // Add seed content if available, as a system message or initial user message part
       if (agent.seedContent) {
@@ -231,6 +246,10 @@ export async function agentTelephone(
         model: agent.model,
         aiType: agent.aiType,
       });
+
+      // AFTER successfully getting a reply and BEFORE onMessageUpdate for the reply:
+      messagesSentThisRun++;
+      onProgressUpdate(messagesSentThisRun, totalMessagesToExpect);
     }
     previousRoundContext = currentRoundMessagesForContext.join("\n\n---\n\n");
     console.log(`End of round ${roundNum + 1}. Context for next round (or final output): ${previousRoundContext.substring(0, 100)}...\n`);
@@ -245,4 +264,7 @@ export async function agentTelephone(
     timestamp: new Date(),
   });
   onChainComplete(previousRoundContext);
+
+  // Ensure final progress update if not already at 100%
+  onProgressUpdate(totalMessagesToExpect, totalMessagesToExpect);
 } 
